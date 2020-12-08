@@ -3,6 +3,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 
 public class Driver extends JPanel {
@@ -11,6 +12,7 @@ public class Driver extends JPanel {
     static JFrame frame;
     static Graph graph;
     static int width = 800, height = 800;
+    static double globalDensity = 0.5;
 
     public static void main(String[] args) throws InterruptedException {
         startUI();
@@ -18,21 +20,21 @@ public class Driver extends JPanel {
     }
 
     public static void startUI() {
-        graph = Graph.generateRandomGraph(5);
+        graph = new Graph(10, 0.5, false);
         frame = new JFrame("Graph");
-        JButton graphButton = new JButton("Generate Graph");
-        graphButton.setBounds(20, 150, 120, 40);
-        graphButton.addActionListener(e -> {
-            graph = Graph.generateRandomGraph(5);
+        JButton generateGraph = new JButton("Generate Graph");
+        generateGraph.setBounds(20, 150, 120, 40);
+        generateGraph.addActionListener(e -> {
+            graph = new Graph(10, globalDensity, false);
             generateGraphics();
         });
         JButton updateButton = new JButton("Update Graph");
         updateButton.setBounds(20, 150, 120, 40);
         updateButton.addActionListener(e -> {
-            graph.createGraphics();
-            generateGraphics();
+//            graph.initializeGraphics();
+//            generateGraphics();
         });
-        JSlider slider = new JSlider(JSlider.HORIZONTAL, 0, 10, Graph.densityFactor);
+        JSlider slider = new JSlider(JSlider.HORIZONTAL, 0, 10, (int)(globalDensity * 10.0));
         Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
         labelTable.put( 0, new JLabel("0.0") );
         labelTable.put( 1, new JLabel("0.1") );
@@ -54,11 +56,13 @@ public class Driver extends JPanel {
             @Override
             public void stateChanged(ChangeEvent e) {
                 JSlider source = (JSlider)e.getSource();
-                Graph.densityFactor = source.getValue();
+                globalDensity = source.getValue() / 10.0;
+                graph.changeDensityFactor(source.getValue() / 10.0);
+                generateGraphics();
             }
         });
         JPanel panel = new JPanel();
-        panel.add(graphButton);
+        panel.add(generateGraph);
         //panel.add(updateButton);
         panel.add(slider);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

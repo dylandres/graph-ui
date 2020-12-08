@@ -56,7 +56,7 @@ public class Drawable extends JPanel {
                 }
             }
         }
-        catch (ConcurrentModificationException e) {
+        catch (Exception e) {
         }
     }
 
