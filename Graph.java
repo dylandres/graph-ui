@@ -1,14 +1,11 @@
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.*;
 
 public class Graph {
 
     int numVertices;
-    double densityFactor; // 0.0 - 1.0
-    int numEdges;
     boolean directed;
+    double densityFactor;
+    int numEdges;
     int[][] matrix;
     LinkedList<Integer>[] edgeList;
     HashMap<Integer, CoordinatePair> nodeLocations; // Node number -> (x, y)
@@ -17,9 +14,9 @@ public class Graph {
 
     public Graph(int v, double densityFactor, boolean directed) {
         this.numVertices = v;
-        this.densityFactor = densityFactor;
-        this.numEdges = calculateNumOfEdges(v, densityFactor);
         this.directed = directed;
+        this.densityFactor = densityFactor;
+        this.numEdges = this.calculateNumOfEdges();
         this.matrix = new int[v + 1][v + 1];
         this.edgeList = new LinkedList[v + 1];
         for (int i = 1; i < v + 1; i++) {
@@ -29,9 +26,16 @@ public class Graph {
         this.initializeGraphics();
     }
 
-    public static int calculateNumOfEdges(int v, double densityFactor) {
-        int maxNumOfEdges = (v * (v-1)) / 2;
-        return (int)(maxNumOfEdges * densityFactor);
+    private void initializeGraphics() {
+        nodeLocations = new HashMap<>(); // Coordinate locations of vertices
+        this.mapVertices();
+        this.mapEdges();
+    }
+
+    public int calculateNumOfEdges() {
+        int v = this.numVertices;
+        double d = this.densityFactor;
+        return this.directed ? (int)(v * (v-1) * d) : (int)(((v * (v-1)) / 2) * d);
     }
 
     public void addEdge(int u, int v) {
@@ -68,25 +72,20 @@ public class Graph {
         }
     }
 
-    public void initializeGraphics() {
-        nodeLocations = new HashMap<>(); // Coordinate locations of vertices
-        this.mapVertices();
-        this.mapEdges();
-    }
-
     public void mapVertices() {
         vertexGraphics = new ArrayList<>();
         HashMap<Integer, Integer> xMap = new HashMap<>();
         HashMap<Integer, Integer> yMap = new HashMap<>();
-        for (int i = 1; i <= this.numVertices; i++) { // Create shape stream and location (x, y) for each vertex
+        for (int i = 1; i <= 25; i++) { // Create shape stream and location (x, y) for each vertex
             int x;
             int y;
             do {
-                x = Graph.randomNumberBetween(300, 600, -1);
-                y = Graph.randomNumberBetween(40, 340, -1);
+                x = Graph.randomNumberBetween(500, 960, -1);
+                y = Graph.randomNumberBetween(40, 500, -1);
             } while (collides(xMap, yMap, x, y));
-            Shape node = new Shape("node", x, y);
-            vertexGraphics.add(node);
+            Shape node = new Shape(i, "node", x, y);
+            if (i <= this.numVertices)
+                vertexGraphics.add(node);
             xMap.put(x, x);
             yMap.put(y, y);
             nodeLocations.put(i, new CoordinatePair(x, y));
@@ -105,9 +104,8 @@ public class Graph {
                 int jy = jCoords.y;
                 Shape newShape = new Shape("line", ix + 8, iy + 8, jx + 8, jy + 8);
                 edgeGraphics.add(newShape);
-//                if (this.directed)
-//                    graphics.add(new Shape("arrow", jx + 6, jy + 6));
-//                    visibleShapes.add(new Shape("arrow", jx - 2, jx, jx + 2, jy - 2, jy, jy + 2));
+                if (this.directed)
+                    edgeGraphics.add(new Shape(0, "arrow", jx + 6, jy + 6));
             }
         }
     }
@@ -124,7 +122,7 @@ public class Graph {
     }
 
     // Generates a random number [a, b] excluding exc, don't exclude anything if exc == -1
-    private static int randomNumberBetween(int a, int b, int exc) {
+    public static int randomNumberBetween(int a, int b, int exc) {
         int num = (int)(Math.random() * (b - a + 1)) + a;
         if (exc == -1)
             return num;
@@ -136,7 +134,7 @@ public class Graph {
 
     public void changeDensityFactor(double densityFactor) {
         this.densityFactor = densityFactor;
-        int newNumEdges = calculateNumOfEdges(this.numVertices, densityFactor);
+        int newNumEdges = this.calculateNumOfEdges();
         int edgesToMake = newNumEdges - this.numEdges;
         this.numEdges = newNumEdges;
         if (edgesToMake == 0)
@@ -150,10 +148,7 @@ public class Graph {
                     v = randomNumberBetween(1, this.numVertices, u);
                 }
                 while (!this.isEdge(u, v));
-//                System.out.println("(" + u + ", " + v + ")");
-//                System.out.println("Before remove: \n" + this.toString() + "\n");
                 this.removeEdge(u, v);
-//                System.out.println("After remove: \n" + this.toString() + "\n");
             }
             else {
                 do {
@@ -161,27 +156,51 @@ public class Graph {
                     v = randomNumberBetween(1, this.numVertices, u);
                 }
                 while (this.isEdge(u, v));
-//                System.out.println("(" + u + ", " + v + ")");
-//                System.out.println("Before add: \n" + this.toString() + "\n");
                 this.addEdge(u, v);
-//                System.out.println("After add: \n" + this.toString() + "\n");
             }
         }
         this.mapEdges();
-//        else { // Density was increased, more edges
-//            for (int i = 0; i < edgesToMake; i++) {
-//                int u;
-//                int v;
-//                do {
-//                    u = randomNumberBetween(1, this.numVertices, -1);
-//                    v = randomNumberBetween(1, this.numVertices, u);
-//                }
-//                while (this.isEdge(u, v));
-//                this.addEdge(u, v);
-//            }
-//        }
-//        this.mapEdges();
+    }
 
+    public void changeVertexCount(int count) {
+        vertexGraphics = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Shape node = new Shape(i, "node", nodeLocations.get(i).x, nodeLocations.get(i).y);
+            vertexGraphics.add(node);
+        }
+        this.numVertices = count;
+        this.matrix = new int[numVertices + 1][numVertices + 1];
+        this.edgeList = new LinkedList[numVertices + 1];
+        for (int i = 1; i < numVertices + 1; i++) {
+            this.edgeList[i] = new LinkedList<>();
+        }
+        this.numEdges = this.calculateNumOfEdges();
+        this.createRandomEdges();
+        this.mapEdges();
+    }
+
+    public void directedToUndirected() {
+        this.directed = false;
+        this.numEdges /= 2;
+        this.matrix = new int[numVertices + 1][numVertices + 1];
+        this.edgeList = new LinkedList[numVertices + 1];
+        for (int i = 1; i < numVertices + 1; i++) {
+            this.edgeList[i] = new LinkedList<>();
+        }
+        this.createRandomEdges();
+        this.mapEdges();
+    }
+
+    public void undirectedToDirected() {
+        this.directed = true;
+        this.numEdges *= 2;
+        this.matrix = new int[numVertices + 1][numVertices + 1];
+        this.edgeList = new LinkedList[numVertices + 1];
+        for (int i = 1; i < numVertices + 1; i++) {
+            this.edgeList[i] = new LinkedList<>();
+        }
+        this.createRandomEdges();
+        this.mapEdges();
     }
 
     public String toString() {
@@ -195,40 +214,15 @@ public class Graph {
         return str;
     }
 
-//    public static Graph generateRandomGraph(int density) {
-//        int q = randomNumberBetween(10, 10, -1);
-//        int e = ((q * (q - 1)) / 2);
-//        if (densityFactor == 0) {
-//            Graph graph = new Graph(q, 0, false);
-//            graph.initializeGraphics();
-//            return graph;
-//        }
-//        double factor = densityFactor / 10.0;
-//        double ee = e * factor;
-//        e = (int) ee;
-//        Graph graph = new Graph(q, e, false);
-//        for (int i = 0; i < graph.numEdges; i++) {
-//            int u;
-//            int v;
-//            do {
-//                u = randomNumberBetween(1, graph.numVertices, -1);
-//                v = randomNumberBetween(1, graph.numVertices, u);
-//            } while (graph.isEdge(u, v));
-//            graph.addEdge(u, v);
-//        }
-//        graph.initializeGraphics();
-//        return graph;
-//    }
-
     public void generateMatrixGraphic(ArrayList<Shape> visibleShapes) {
         for (int i = 1; i < this.matrix.length; i++) {
             for (int j = 1;  j < this.matrix[i].length; j++) {
                 if (this.isEdge(i, j)) {
-                    Shape newShape = new Shape("edge", j * 20, i * 20);
+                    Shape newShape = new Shape(0, "edge", j * 17, i * 17);
                     visibleShapes.add(newShape);
                 }
                 else {
-                    Shape newShape = new Shape("non-edge", j * 20, i * 20);
+                    Shape newShape = new Shape(0, "non-edge", j * 17, i * 17);
                     visibleShapes.add(newShape);
                 }
             }
@@ -238,20 +232,73 @@ public class Graph {
     public void generateGraphGraphic(ArrayList<Shape> visibleShapes) {
         visibleShapes.addAll(this.edgeGraphics);
         visibleShapes.addAll(this.vertexGraphics);
-        visibleShapes.add(new Shape("box", 280, 20));
+        visibleShapes.add(new Shape(0, "box", 480, 20)); //370
     }
 
+    public ArrayList<Shape> dfs(int start) {
+        ArrayList<Shape> path = new ArrayList<>();
+        boolean[] visited = new boolean[this.numVertices + 1];
+        this.dfsUtil(start, visited, path);
+        return path;
+    }
+
+    public void dfsUtil(int start, boolean[] visited, ArrayList<Shape> path) {
+        visited[start] = true;
+        path.add(new Shape(start, "dfs-node-found", this.nodeLocations.get(start).x, this.nodeLocations.get(start).y));
+        LinkedList<Integer> sortedNeigbors = (LinkedList<Integer>) this.edgeList[start].clone();
+        sortedNeigbors.sort(Comparator.naturalOrder());
+        for (int i = 0; i < sortedNeigbors.size(); i++) {
+            int neighbor = sortedNeigbors.get(i);
+            if (!visited[neighbor]) {
+                path.add(new Shape("dfs-line-newly-visited",  this.nodeLocations.get(start).x+8,  this.nodeLocations.get(start).y+8,
+                        this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+                dfsUtil(neighbor, visited, path);
+            }
+            else {
+                path.add(new Shape("dfs-line-already-visited",  this.nodeLocations.get(start).x+8,  this.nodeLocations.get(start).y+8,
+                        this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+            }
+            path.add(new Shape("dfs-line",  this.nodeLocations.get(start).x+8,  this.nodeLocations.get(start).y+8,
+                    this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+        }
+        path.add(new Shape(start, "dfs-node-processed", this.nodeLocations.get(start).x, this.nodeLocations.get(start).y));
+
+    }
+
+    public ArrayList<Shape> bfs(int start) {
+        ArrayList<Shape> path = new ArrayList<>();
+        boolean[] visited = new boolean[this.numVertices + 1];
+        LinkedList<Integer> queue = new LinkedList<>();
+        visited[start] = true;
+        queue.offer(start);
+        while (!queue.isEmpty()) {
+            int node = queue.poll();
+            path.add(new Shape(node, "dfs-node-found", this.nodeLocations.get(node).x, this.nodeLocations.get(node).y));
+            LinkedList<Integer> sortedNeigbors = (LinkedList<Integer>) this.edgeList[node].clone();
+            sortedNeigbors.sort(Comparator.naturalOrder());
+            for (int i = 0; i < sortedNeigbors.size(); i++) {
+                int neighbor = sortedNeigbors.get(i);
+                if (!visited[neighbor]) {
+                    path.add(new Shape("dfs-line-newly-visited",  this.nodeLocations.get(node).x+8,  this.nodeLocations.get(node).y+8,
+                            this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+                    visited[neighbor] = true;
+                    queue.offer(neighbor);
+                }
+                else {
+                    path.add(new Shape("dfs-line-already-visited",  this.nodeLocations.get(node).x+8,  this.nodeLocations.get(node).y+8,
+                            this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+                }
+                path.add(new Shape("dfs-line",  this.nodeLocations.get(node).x+8,  this.nodeLocations.get(node).y+8,
+                        this.nodeLocations.get(neighbor).x+8, this.nodeLocations.get(neighbor).y+8));
+            }
+            path.add(new Shape(node, "dfs-node-processed", this.nodeLocations.get(node).x, this.nodeLocations.get(node).y));
+
+        }
+        return path;
+    }
+
+
     public static void main(String[] args) {
-        Graph g = new Graph(10, 1.0, false);
-        System.out.println(g);
-        for (int i = 1; i < g.numVertices + 1; i++) {
-            System.out.println(i + ": " + g.edgeList[i]);
-        }
-        g.removeEdge(5, 6);
-        System.out.println(g);
-        for (int i = 1; i < g.numVertices + 1; i++) {
-            System.out.println(i + ": " + g.edgeList[i]);
-        }
     }
 
 }
