@@ -30,12 +30,12 @@ public class Drawable extends JPanel {
                 switch (shape.name) {
                     case "edge":
 //                        g.setColor(new Color(0, 153, 0));
-                        g.setColor(Color.green.darker());
+                        g.setColor(Color.green);
                         g.fillRect(shape.x, shape.y, 16, 16);
                         break;
                     case "non-edge":
 //                        g.setColor(new Color(0, 0, 153));
-                        g.setColor(Color.darkGray);
+                        g.setColor(Color.red);
                         g.fillRect(shape.x, shape.y, 16, 16);
                         break;
                     case "cell":
