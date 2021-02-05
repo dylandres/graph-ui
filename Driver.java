@@ -3,13 +3,10 @@ import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.*;
 import java.util.*;
 
-public class Driver extends JPanel implements MouseListener {
+public class Driver extends JPanel {
 
     static ArrayList<Shape> visibleShapes;
     static JFrame frame;
@@ -18,67 +15,105 @@ public class Driver extends JPanel implements MouseListener {
     static double globalDensity = 0.5;
     static int globalVertexCount = 10;
     static boolean globalDirected = true;
+    static boolean globalWeighted = false;
     static boolean traversalOccurring = false;
     static Timer timer;
-    static int speed = 110;//560;
+    static int speed = 110;
     static int counter = 0;
     static ArrayList<Shape> path;
+    static ArrayList<Shape> matrixPath;
+    static ArrayList<Shape> arrowPath;
     static JButton clearGraph;
-    public static void main(String[] args) throws InterruptedException {
+    static int origin = 0;
+    static int dest = 0;
+
+    public static void main(String[] args) {
         startUI();
         generateGraphics();
-//        while (true) {
-//            graph = new Graph(25, globalDensity, false);
-//            generateGraphics();
-//        }
+//        spin(100);
+    }
+
+    public static void spin(int speed) {
+        while (true) {
+            graph = new Graph(25, globalDensity, false, globalWeighted);
+            generateGraphics();
+            try {
+                Thread.sleep(speed);
+            }
+            catch (InterruptedException e) {
+            }
+        }
     }
 
     public static void startUI() {
-        graph = new Graph(globalVertexCount, 0.5, globalDirected);
+        graph = new Graph(globalVertexCount, 0.5, globalDirected, globalWeighted);
         frame = new JFrame("Graph");
         JButton generateGraph = new JButton("Generate New Graph");
         JLabel density = new JLabel("  Density Factor: " + globalDensity);
         JLabel vCount = new JLabel("  Vertex Count: " + globalVertexCount);
-        JLabel eCount = new JLabel("  Edge Count: " + graph.numEdges);
+        JLabel eCount = new JLabel("  Edge Count: " + graph.getEdges());
         ButtonGroup group = new ButtonGroup();
         JRadioButton dir = new JRadioButton("Directed");
-        JRadioButton undir = new JRadioButton("Undirected");
+        JRadioButton undir = new JRadioButton("Un-directed");
         dir.addActionListener(e -> {
             if (!traversalOccurring && !globalDirected && dir.isSelected()) {
                 globalDirected = true;
                 graph.undirectedToDirected();
-                generateGraphics();
-                eCount.setText("  Edge Count: " + graph.numEdges);
+                clearTraversal(graph);
+                eCount.setText("  Edge Count: " +graph.getEdges());
             }
         });
         undir.addActionListener(e -> {
             if (!traversalOccurring && globalDirected && undir.isSelected()) {
                 globalDirected = false;
                 graph.directedToUndirected();
-                generateGraphics();
-                eCount.setText("  Edge Count: " + graph.numEdges);
+                clearTraversal(graph);
+                eCount.setText("  Edge Count: " + graph.getEdges());
             }
         });
         group.add(dir);
         group.add(undir);
         dir.setSelected(true);
+        ButtonGroup group2 = new ButtonGroup();
+        JRadioButton weighted = new JRadioButton("Weighted");
+        JRadioButton unweighted = new JRadioButton("Un-weighted");
+        weighted.addActionListener(e -> {
+            if (!traversalOccurring && !globalWeighted && weighted.isSelected()) {
+                globalWeighted = true;
+                graph.swapWeighted(true);
+                clearTraversal(graph);
+            }
+        });
+        unweighted.addActionListener(e -> {
+            if (!traversalOccurring && globalWeighted && unweighted.isSelected()) {
+                globalWeighted = false;
+                graph.swapWeighted(false);
+                clearTraversal(graph);
+            }
+        });
+        group2.add(weighted);
+        group2.add(unweighted);
+        unweighted.setSelected(true);
         generateGraph.setBounds(20, 150, 120, 40);
         generateGraph.addActionListener(e -> {
             if (!traversalOccurring) {
-                graph = new Graph(globalVertexCount, globalDensity, globalDirected);
+                graph = new Graph(globalVertexCount, globalDensity, globalDirected, globalWeighted);
                 generateGraphics();
                 density.setText("  Density Factor: " + globalDensity);
                 vCount.setText("  Vertex Count: " + globalVertexCount);
-                eCount.setText("  Edge Count: " + graph.numEdges);
+                eCount.setText("  Edge Count: " + graph.getEdges());
             }
         });
         JButton dfsButton = new JButton("Run DFS");
         JButton bfsButton = new JButton("Run BFS");
-        JButton primButton = new JButton("Run Prim's");
-        JButton kruskalButton = new JButton("Run Kruskal's");
+        JButton dijkstraButton = new JButton("Run Dijkstra's");
+        //JButton kruskalButton = new JButton("Run Kruskal's");
         clearGraph = new JButton("Clear");
         clearGraph.addActionListener(e -> {
-            timer.stop();
+            if (timer != null) {
+                if (timer.isRunning())
+                    timer.stop();
+            }
             traversalOccurring = false;
             clearGraph.setText("Clear");
             clearTraversal(graph);
@@ -87,12 +122,15 @@ public class Driver extends JPanel implements MouseListener {
         dfsButton.addActionListener(e -> {
             clearGraph.setText("Stop");
             if (!traversalOccurring)
-                traversal("dfs");
+                traversal("dfs", origin);
         });
         bfsButton.addActionListener(e -> {
             clearGraph.setText("Stop");
             if (!traversalOccurring)
-                traversal("bfs");
+                traversal("bfs", origin);
+        });
+        dijkstraButton.addActionListener(e -> {
+            graph.dijkstra(origin, dest);
         });
         JSlider slider = new JSlider(JSlider.HORIZONTAL, 0, 10, (int)(globalDensity * 10.0));
         Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
@@ -123,7 +161,7 @@ public class Driver extends JPanel implements MouseListener {
                     clearTraversal(graph);
                     density.setText("  Density Factor: " + globalDensity);
                     vCount.setText("  Vertex Count: " + globalVertexCount);
-                    eCount.setText("  Edge Count: " + graph.numEdges);
+                    eCount.setText("  Edge Count: " + graph.getEdges());
                 }
             }
         });
@@ -170,7 +208,7 @@ public class Driver extends JPanel implements MouseListener {
                     clearTraversal(graph);
                     density.setText("  Density Factor: " + globalDensity);
                     vCount.setText("  Vertex Count: " + globalVertexCount);
-                    eCount.setText("  Edge Count: " + graph.numEdges);
+                    eCount.setText("  Edge Count: " + graph.getEdges());
                 }
             }
         });
@@ -204,6 +242,8 @@ public class Driver extends JPanel implements MouseListener {
         buttonPanel.add(eCount);
         buttonPanel.add(dir);
         buttonPanel.add(undir);
+        buttonPanel.add(weighted);
+        buttonPanel.add(unweighted);
         JTabbedPane tabs = new JTabbedPane();
         tabs.setForeground(Color.black);
         JPanel card1 = new JPanel();
@@ -222,9 +262,9 @@ public class Driver extends JPanel implements MouseListener {
         c1.gridx = 1;
         card3.add(bfsButton, c1);
         c1.gridx = 2;
-        card3.add(primButton, c1);
+        card3.add(dijkstraButton, c1);
         c1.gridx = 3;
-        card3.add(kruskalButton, c1);
+//        card3.add(kruskalButton, c1);
         c1.gridx = 4;
         card3.add(clearGraph, c1);
         card1.add(slider);
@@ -249,6 +289,75 @@ public class Driver extends JPanel implements MouseListener {
         frame.add(masterPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
         generateGraphics();
+        frame.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (!traversalOccurring) {
+                    super.mouseClicked(e);
+                    int x = e.getX();
+                    int y = e.getY();
+                    for (int node = 1; node <= graph.numVertices; node++) {
+                        if (origin == node || dest == node)
+                            continue;
+                        CoordinatePair coords = graph.nodeLocations.get(node);
+                        int nodeX = coords.x;
+                        int nodeY = coords.y;
+                        if (nodeX - 7 < x - 8 && x - 8 < nodeX + 7 && nodeY - 7 < y - 38 && nodeY + 7 > y - 38) {
+                            if (origin == 0) {
+                                origin = node;
+                                for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                    if (graph.vertexGraphics.get(i).name.equals("node") && graph.vertexGraphics.get(i).x == nodeX && graph.vertexGraphics.get(i).y == nodeY) {
+                                        graph.vertexGraphics.set(i, new Shape(node, "origin", nodeX, nodeY));
+                                        break;
+                                    }
+                                }
+                            } else {
+                                if (dest == 0) {
+                                    dest = node;
+                                    for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                        if (graph.vertexGraphics.get(i).name.equals("node") && graph.vertexGraphics.get(i).x == nodeX && graph.vertexGraphics.get(i).y == nodeY) {
+                                            graph.vertexGraphics.set(i, new Shape(node, "dest", nodeX, nodeY));
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    origin = node;
+                                    for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                        Shape s = graph.vertexGraphics.get(i);
+                                        if (s.name.equals("origin")) {
+                                            graph.vertexGraphics.set(i, new Shape(s.num, "node", s.x, s.y));
+                                            break;
+                                        }
+                                    }
+                                    for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                        if (graph.vertexGraphics.get(i).name.equals("node") && graph.vertexGraphics.get(i).x == nodeX && graph.vertexGraphics.get(i).y == nodeY) {
+                                            graph.vertexGraphics.set(i, new Shape(node, "origin", nodeX, nodeY));
+                                            break;
+                                        }
+                                    }
+                                    dest = 0;
+                                    for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                        Shape s = graph.vertexGraphics.get(i);
+                                        if (s.name.equals("dest")) {
+                                            graph.vertexGraphics.set(i, new Shape(s.num, "node", s.x, s.y));
+                                            break;
+                                        }
+                                    }
+                                    for (int i = 0; i < graph.vertexGraphics.size(); i++) {
+                                        if (graph.vertexGraphics.get(i).name.equals("node") && graph.vertexGraphics.get(i).x == nodeX && graph.vertexGraphics.get(i).y == nodeY) {
+                                            graph.vertexGraphics.set(i, new Shape(node, "dest", nodeX, nodeY));
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            generateGraphics();
+                            break;
+                        }
+                    }
+                }
+            }
+        });
     }
 
     public static void generateGraphics() {
@@ -288,6 +397,25 @@ public class Driver extends JPanel implements MouseListener {
                         graph.edgeGraphics.set(i, path.get(counter));
                     }
                 }
+                for (int i = 0; i < graph.matrixGraphics.size(); i++) {
+                    if (graph.matrixGraphics.get(i).x == matrixPath.get(counter).x && graph.matrixGraphics.get(i).y == matrixPath.get(counter).y) {
+                        graph.matrixGraphics.set(i, matrixPath.get(counter));
+                    }
+                }
+                if (graph.directed) {
+                    for (int i = 1; i < graph.arrowGraphics.length; i++) {
+                        for (int j = 1; j < graph.arrowGraphics.length; j++) {
+                            if (graph.arrowGraphics[i][j] != null) {
+                                Shape s = graph.arrowGraphics[i][j];
+                                if (s.t1a == arrowPath.get(counter).t1a && s.t1b == arrowPath.get(counter).t1b && s.t1c == arrowPath.get(counter).t1c &&
+                                        s.t2a == arrowPath.get(counter).t2a && s.t2b == arrowPath.get(counter).t2b && s.t2c == arrowPath.get(counter).t2c) {
+                                    graph.arrowGraphics[i][j] = arrowPath.get(counter);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
             generateGraphics();
             counter++;
@@ -296,17 +424,22 @@ public class Driver extends JPanel implements MouseListener {
         timer.start();
     }
 
-    public static void traversal(String traversal) {
+    public static void traversal(String traversal, int start) {
         counter = 0;
+        origin = 0;
+        dest = 0;
         path = new ArrayList<>();
 //        System.out.println(traversalOccurring);
         if (!traversalOccurring) {
             traversalOccurring = true;
+            path = new ArrayList<>();
+            matrixPath = new ArrayList<>();
+            arrowPath = new ArrayList<>();
             if (traversal.equals("dfs")) {
-                path = graph.dfs(1);
+                graph.dfs(start, path, matrixPath, arrowPath);
             }
             else {
-                path = graph.bfs(1);
+                graph.bfs(start, path, matrixPath, arrowPath);
             }
             timer = new Timer(speed, new ActionListener() { //100
                 @Override
@@ -335,6 +468,25 @@ public class Driver extends JPanel implements MouseListener {
                                 graph.edgeGraphics.set(i, path.get(counter));
                             }
                         }
+                        for (int i = 0; i < graph.matrixGraphics.size(); i++) {
+                            if (graph.matrixGraphics.get(i).x == matrixPath.get(counter).x && graph.matrixGraphics.get(i).y == matrixPath.get(counter).y) {
+                                graph.matrixGraphics.set(i, matrixPath.get(counter));
+                            }
+                        }
+                        if (graph.directed) {
+                            for (int i = 1; i < graph.arrowGraphics.length; i++) {
+                                for (int j = 1; j < graph.arrowGraphics.length; j++) {
+                                    if (graph.arrowGraphics[i][j] != null) {
+                                        Shape s = graph.arrowGraphics[i][j];
+                                        if (s.t1a == arrowPath.get(counter).t1a && s.t1b == arrowPath.get(counter).t1b && s.t1c == arrowPath.get(counter).t1c &&
+                                                s.t2a == arrowPath.get(counter).t2a && s.t2b == arrowPath.get(counter).t2b && s.t2c == arrowPath.get(counter).t2c) {
+                                            graph.arrowGraphics[i][j] = arrowPath.get(counter);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     generateGraphics();
                     counter++;
@@ -347,41 +499,44 @@ public class Driver extends JPanel implements MouseListener {
     }
 
     public static void clearTraversal(Graph g) {
+        origin = 0;
+        dest = 0;
         for (int i = 0; i < graph.vertexGraphics.size(); i++) {
             graph.vertexGraphics.set(i, new Shape(graph.vertexGraphics.get(i).num, "node", graph.vertexGraphics.get(i).x, graph.vertexGraphics.get(i).y));
         }
-        for (int i = 0; i < graph.edgeGraphics.size(); i++) {
-            if (!graph.edgeGraphics.get(i).name.equals("arrow"))
-                graph.edgeGraphics.set(i, new Shape("line", graph.edgeGraphics.get(i).x, graph.edgeGraphics.get(i).y,
-                    graph.edgeGraphics.get(i).x2, graph.edgeGraphics.get(i).y2));
-        }
+//        for (int i = 0; i < graph.edgeGraphics.size(); i++) {
+//            if (!graph.edgeGraphics.get(i).name.equals("arrow"))
+//                graph.edgeGraphics.set(i, new Shape("line", graph.edgeGraphics.get(i).x, graph.edgeGraphics.get(i).y,
+//                    graph.edgeGraphics.get(i).x2, graph.edgeGraphics.get(i).y2));
+//        }
+//        graph.mapEdges
+//        graph.fillGraphMatrix();
+//        graph.addArrows();
+        graph.mapEdges();
         generateGraphics();
     }
 
-    @Override
-    public void mouseClicked(MouseEvent e) {
-        int x = e.getX();
-        int y = e.getY();
-        System.out.println("(" + x + ", " + y + ")");
-    }
-
-    @Override
-    public void mousePressed(MouseEvent e) {
-
-    }
-
-    @Override
-    public void mouseReleased(MouseEvent e) {
-
-    }
-
-    @Override
-    public void mouseEntered(MouseEvent e) {
-
-    }
-
-    @Override
-    public void mouseExited(MouseEvent e) {
-
-    }
+//    @Override
+//    public void mouseClicked(MouseEvent e) {
+//    }
+//
+//    @Override
+//    public void mousePressed(MouseEvent e) {
+//
+//    }
+//
+//    @Override
+//    public void mouseReleased(MouseEvent e) {
+//
+//    }
+//
+//    @Override
+//    public void mouseEntered(MouseEvent e) {
+//
+//    }
+//
+//    @Override
+//    public void mouseExited(MouseEvent e) {
+//
+//    }
 }

@@ -46,6 +46,7 @@ public class Shape extends Drawable {
                 break;
             case "line":
                 s = "Line: " + "[(" + x + ", " + y + "), (" + x2 + ", " + y2 + ")]";
+                s = "PINK";
                 break;
             case "dfs-line":
                 s = "DFS-Line: " + "[(" + x + ", " + y + "), (" + x2 + ", " + y2 + ")]";
@@ -58,6 +59,9 @@ public class Shape extends Drawable {
                 break;
             case "arrow":
                 s = "ARROW <-------------- " + "x: " + x + ", y: " + y;
+                break;
+            default:
+                s = "COLOR " + name;
                 break;
         }
         return s;
